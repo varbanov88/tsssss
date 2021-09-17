@@ -26,7 +26,7 @@ namespace BackendIntegrator
             services.AddSingleton<IGetSourceApiData, GetSourceApiData>();
             services.AddTransient<HMACDelegatingHandler>();
             services.AddHttpClient("BackEndIntegratorApi", c => c.BaseAddress = new Uri("https://localhost:44313/")).AddHttpMessageHandler<HMACDelegatingHandler>();
-            
+            services.AddHttpClient("OpenWeatherApi", c => c.BaseAddress = new Uri("https://api.openweathermap.org/data/2.5/weather"));
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

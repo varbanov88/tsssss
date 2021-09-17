@@ -1,13 +1,13 @@
-﻿using System.ComponentModel;
+﻿using System.Xml.Serialization;
 
 namespace BackendIntegrator.Models
 {
     public enum ErrorCode
-    { 
-        success = 0,
-        unauthorized = 1,
-        [Description("unexpected error")] unexpectedError = 2,
-        offline = 3,
+    {
 
+        [XmlEnum("0")] success = 0,
+        [XmlEnum("1")] unauthorized = 1,
+        [XmlEnum("2")] unexpectedError = 2,
+        [XmlEnum("3")] offline = 3
     }
 }

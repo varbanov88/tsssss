@@ -1,48 +1,74 @@
-﻿using BackendIntegrator.Models;
+﻿using BackendIntegrator.Attributes;
+using BackendIntegrator.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
+using Newtonsoft.Json;
 using System;
+using System.Net.Http;
+using System.Threading.Tasks;
 
 namespace BackendIntegrator.Controllers
 {
     [ApiController]
-    //[HmacAuthentication]
+    [HMACAuthentication]
     [Route("[controller]")]
     public class TemperatureController : ControllerBase
     {
         private readonly Random _rnd = new Random();
+        private readonly HttpClient _client;
+        private readonly IConfiguration _configuration;
 
-        [HttpGet("[action]")]
-        public ActionResult<TemperatureData> TodayJson()
+        public TemperatureController(IHttpClientFactory clientFactory, IConfiguration configuration)
         {
-            var result = GetTemperatureData();
-            return Ok(result);
+            _client = clientFactory.CreateClient("OpenWeatherApi");
+            _configuration = configuration;
         }
 
         [HttpGet("[action]")]
-        public ActionResult<TemperatureDataExtended> TodayXml()
+        public async Task<ActionResult<TemperatureData>> TodayJson()
         {
-            var data = GetTemperatureData();
+            var result = await GetTemperatureDataAsync();
+            if (result != null)
+            {
+                return Ok(result);
+            }
+            return BadRequest();
+        }
+
+        [Produces("application/xml")]
+        [HttpGet("[action]")]
+        public async Task<ActionResult<TemperatureDataExtended>> TodayXml()
+        {
+            var data = await GetTemperatureDataAsync();
             var values = Enum.GetValues(typeof(ErrorCode));
             var randomStatus = (ErrorCode)values.GetValue(_rnd.Next(values.Length));
-            return new TemperatureDataExtended
+            return Ok(new TemperatureDataExtended
             {
-                Pressure = data.Pressure,
-                TemperatureInC = data.TemperatureInC,
-                Error = randomStatus,
+                Pressure = data != null ? data.Pressure : 0,
+                TemperatureInC = data != null ? data.TemperatureInC : 0,
+                Error = data != null ? randomStatus : ErrorCode.unexpectedError,
                 Success = true
-            };
+            });
         }
 
-        private TemperatureData GetTemperatureData()
+        private async Task<TemperatureData> GetTemperatureDataAsync()
         {
-            var temperatureInC = _rnd.Next(-20, 55);
-            var pressure = _rnd.Next(1001, 1084);
-
-            return new TemperatureData
+            TemperatureData result = null; ;
+            var key = _configuration.GetValue<string>("OpenWeatherKey");
+            var endpoint = $"?q=Varna&appid={key}";
+            var response = await _client.GetAsync(endpoint);
+            if (response.IsSuccessStatusCode)
             {
-                Pressure = pressure,
-                TemperatureInC = temperatureInC
-            };
+                var respnseBody = await response.Content.ReadAsStringAsync();
+                var responseData = JsonConvert.DeserializeObject<WeatherResponse>(respnseBody);
+                result = new TemperatureData
+                {
+                    Pressure = responseData.Main.Pressure,
+                    TemperatureInC = responseData.Main.Temp / 32
+                };
+            }
+
+            return result;
         }
     }
 }
